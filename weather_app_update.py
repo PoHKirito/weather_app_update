@@ -1,47 +1,46 @@
-from flask import Flask, request, jsonify
+from flask import Flask, render_template, jsonify
 import sqlite3
 
 app = Flask(__name__)
-db_path = "weather_forecast.db"  # SQLite 数据库路径
 
-@app.route('/forecast', methods=['POST'])
-def get_forecast():
-    data = request.json
-    area_code = data.get('area_code')
-    start_date = data.get('start_date')
-    end_date = data.get('end_date')
-    response_data = []
+def initialize_database():
+    conn = sqlite3.connect("weather_forecast.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS WeatherForecast (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            area_code TEXT,
+            area_name TEXT,
+            date TEXT,
+            weather TEXT,
+            temperature TEXT,
+            precipitation TEXT,
+            wind TEXT,
+            wave TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-    if not area_code or not start_date or not end_date:
-        return jsonify({"error": "すべてのフィールドを入力してください。"})
+def export_to_sql():
+    conn = sqlite3.connect("weather_forecast.db")
+    with open("weather_forecast.sql", "w") as f:
+        for line in conn.iterdump():
+            f.write(f"{line}\n")
+    conn.close()
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/export", methods=["GET"])
+def export_database():
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        query = '''
-            SELECT date, area_name, weather, temperature, precipitation, wind, wave 
-            FROM weather_reports 
-            WHERE area_code = ? AND date BETWEEN ? AND ?
-        '''
-        cursor.execute(query, (area_code, start_date, end_date))
-        rows = cursor.fetchall()
-
-        for row in rows:
-            response_data.append({
-                "Date": row[0],
-                "Area": row[1],
-                "Weather": row[2],
-                "Temperature": row[3],
-                "Precipitation": row[4],
-                "Wind": row[5],
-                "Wave": row[6],
-            })
+        export_to_sql()
+        return jsonify({"message": "Database exported to weather_forecast.sql"})
     except Exception as e:
-        return jsonify({"error": str(e)})
-    finally:
-        conn.close()
+        return jsonify({"error": str(e)}), 500
 
-    return jsonify(response_data)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
+    initialize_database()
     app.run(debug=True)
