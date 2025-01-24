@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天気予報データエクスポート</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        select, button {
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .message {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>天気予報データエクスポート</h1>
+    <label for="area_code">地域を選択してください：</label>
+    <select id="area_code">
+        <option value="">--- 地域を選択してください ---</option>
+        {% for area in areas %}
+        <option value="{{ area.code }}">{{ area.name }}</option>
+        {% endfor %}
+    </select>
+    <br>
+    <button id="export-btn">データベースをエクスポート</button>
+    <div id="message" class="message"></div>
+
+    <script>
+        document.getElementById('export-btn').addEventListener('click', async () => {
+            const messageDiv = document.getElementById('message');
+            const areaCode = document.getElementById('area_code').value;
+
+            if (!areaCode) {
+                messageDiv.textContent = "地域を選択してください。";
+                return;
+            }
+
+            messageDiv.textContent = "エクスポート中...";
+
+            try {
+                const response = await fetch('/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ area_code: areaCode })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = data.message;
+                } else {
+                    messageDiv.textContent = `エラー: ${data.error}`;
+                }
+            } catch (error) {
+                console.error('エクスポートエラー:', error);
+                messageDiv.textContent = "エクスポートに失敗しました。";
+            }
+        });
+    </script>
+</body>
+</html>
